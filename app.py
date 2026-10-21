@@ -13,11 +13,18 @@ app.secret_key = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
 
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS_HASH = os.environ.get("ADMIN_PASS_HASH")
+
+# Password မထည့်ထားရင် default ကို သုံးမယ် (စမ်းသပ်ရုံအတွက်)
 if not ADMIN_PASS_HASH:
-    _pw = os.environ.get("ADMIN_PASSWORD", "changeme")
+    _pw = os.environ.get("ADMIN_PASSWORD", "admin123")
     ADMIN_PASS_HASH = generate_password_hash(_pw)
-    print(f"⚠️  WARNING: fallback password '{_pw}' — set ADMIN_PASS_HASH!")
-DB_PATH = os.environ.get("DB_PATH", "vpn.db")
+    print(f"⚠️ WARNING: Default password '{_pw}' အသုံးပြုနေပါတယ်!")
+
+# Vercel ပေါ်မှာဆိုရင် /tmp/vpn.db ကို သုံးမယ်၊ ဒါမှမဟုတ် local မှာ vpn.db ကို သုံးမယ်
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/vpn.db"
+else:
+    DB_PATH = os.environ.get("DB_PATH", "vpn.db")
 
 # ---------- DB ----------
 def get_db():
@@ -32,17 +39,20 @@ def close_db(exc=None):
     if db is not None:
         db.close()
 
-with sqlite3.connect(DB_PATH) as _db:
-    _db.execute("""
-        CREATE TABLE IF NOT EXISTS keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            location TEXT DEFAULT '',
-            url TEXT NOT NULL,
-            active INTEGER DEFAULT 1,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+def init_db():
+    with sqlite3.connect(DB_PATH) as _db:
+        _db.execute("""
+            CREATE TABLE IF NOT EXISTS keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                location TEXT DEFAULT '',
+                url TEXT NOT NULL,
+                active INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+init_db()
 
 # ---------- Helpers ----------
 def login_required(f):
